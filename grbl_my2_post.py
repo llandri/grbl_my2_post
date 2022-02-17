@@ -536,7 +536,7 @@ def parse(pathobj):
                 out += "TOOL_NUMBER " + 'T' + str(TOOL_NUMBER) + "\n"
                 out += linenumber() + "\nM83\nM33 " + "S" + str(TOOL_SPEED) + "\nG600 " + "T" + str(TOOL_NUMBER) + "\n\n"
 
-            # if TOOL_NUMBER > 12 and command in ('M6', 'M06') and command in ('G81', 'G82', 'G83'):
+            # if TOOL_NUMBER > 12 and command in ('M6', 'M06') and command in ('G81', 'G82', 'G83'):        # when milling and drilling spindle numbers are the same
                 # print("Spindle numbers match. Check spindle numbers!")
 
             if command == "message":
