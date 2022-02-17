@@ -524,11 +524,10 @@ def parse(pathobj):
                     out += linenumber() + "(Milling spindle number error)\n"
             if command in ('G81', 'G82', 'G83'):
                 if TOOL_NUMBER > 12:
-                    out += linenumber() + "\nM83\nM33 " + "S" + str(TOOL_SPEED) + "\nG600 " + "T" + str(TOOL_NUMBER) + "\n"
+                    out += linenumber() + "\nM83\nM33 " + "S" + str(TOOL_SPEED) + "\nG600 " + "T" + str(TOOL_NUMBER) + "\n\n"
                 else:
                     print("Check drilling spindle number: " + 'T' + str(TOOL_NUMBER))
                     out += linenumber() + "(Drilling spindle number error)\n"
-                #print("Check milling spindle number: " + 'T' + str(TOOL_NUMBER))
 
             if command == "message":
                 if OUTPUT_COMMENTS is False:
