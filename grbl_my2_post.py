@@ -505,29 +505,39 @@ def parse(pathobj):
                     outstring = []
 
             # Check for Tool Change:
-            if command in ('M6', 'M06'):
-                if TOOL_NUMBER <= 12:
+            if TOOL_NUMBER <= 12 and command in ('M6', 'M06'):
                     # if OUTPUT_COMMENTS:
                         # out += linenumber() + "(Begin toolchange)\n"
                     # if not OUTPUT_TOOL_CHANGE:
                         # outstring.insert(0, "(" )
                         # outstring.append( ")" )
                     #else:
-                    for line in TOOL_CHANGE.splitlines(True):
-                        out += linenumber() + line                              # TOOL_CHANGE = ''''''
-                    #add height offset
-                    if USE_TLO:                                                 # cutter length compensation
-                        tool_height = '\nG43 H' + str(TOOL_NUMBER)
-                        outstring.append(tool_height)
-                else:
-                    print("Check milling spindle number: " + 'T' + str(TOOL_NUMBER))
-                    out += linenumber() + "(Milling spindle number error)\n"
-            if command in ('G81', 'G82', 'G83'):
-                if TOOL_NUMBER > 12:
-                    out += linenumber() + "\nM83\nM33 " + "S" + str(TOOL_SPEED) + "\nG600 " + "T" + str(TOOL_NUMBER) + "\n\n"
-                else:
-                    print("Check drilling spindle number: " + 'T' + str(TOOL_NUMBER))
-                    out += linenumber() + "(Drilling spindle number error)\n"
+                for line in TOOL_CHANGE.splitlines(True):
+                    out += linenumber() + line                              # TOOL_CHANGE = ''''''
+                #add height offset
+                if USE_TLO:                                                 # cutter length compensation
+                    tool_height = '\nG43 H' + str(TOOL_NUMBER)
+                    outstring.append(tool_height)
+                    
+            if TOOL_NUMBER > 12 and command in ('M6', 'M06'):
+                out += "command " + command + "\n"
+                out += "TOOL_NUMBER " + 'T' + str(TOOL_NUMBER) + "\n"
+                print("Check machining and spindle number: " + 'T' + str(TOOL_NUMBER))
+                out += linenumber() + "(Milling spindle number error)\n"
+
+            if TOOL_NUMBER <= 12 and command in ('G81', 'G82', 'G83'):
+                    # out += "command " + command + "\n"
+                    # out += "TOOL_NUMBER " + 'T' + str(TOOL_NUMBER) + "\n"
+                print("Check machining and spindle number: " + 'T' + str(TOOL_NUMBER))
+                out += linenumber() + "(Drilling spindle number error)\n"
+                
+            if TOOL_NUMBER > 12 and command in ('G81', 'G82', 'G83'):
+                out += "command " + command + "\n"
+                out += "TOOL_NUMBER " + 'T' + str(TOOL_NUMBER) + "\n"
+                out += linenumber() + "\nM83\nM33 " + "S" + str(TOOL_SPEED) + "\nG600 " + "T" + str(TOOL_NUMBER) + "\n\n"
+
+            # if TOOL_NUMBER > 12 and command in ('M6', 'M06') and command in ('G81', 'G82', 'G83'):
+                # print("Spindle numbers match. Check spindle numbers!")
 
             if command == "message":
                 if OUTPUT_COMMENTS is False:
