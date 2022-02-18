@@ -98,6 +98,8 @@ M33 S6000___'''                        # Pre operation text will be inserted bef
 POST_OPERATION = ''''''                     # Post operation text will be inserted after every operation
 TOOL_CHANGE = ''''''                            # Tool Change commands will be inserted before a tool change
 
+TOOL_NUMBER = 0
+
 # ***************************************************************************
 # * End of customization
 # ***************************************************************************
@@ -518,22 +520,25 @@ def parse(pathobj):
                 if USE_TLO:                                                 # cutter length compensation
                     tool_height = '\nG43 H' + str(TOOL_NUMBER)
                     outstring.append(tool_height)
-                    
+
             if TOOL_NUMBER > 12 and command in ('M6', 'M06'):
                 out += "command " + command + "\n"
                 out += "TOOL_NUMBER " + 'T' + str(TOOL_NUMBER) + "\n"
                 print("Check machining and spindle number: " + 'T' + str(TOOL_NUMBER))
                 out += linenumber() + "(Milling spindle number error)\n"
+                #outstring.pop(0)
+                
 
             if TOOL_NUMBER <= 12 and command in ('G81', 'G82', 'G83'):
                     # out += "command " + command + "\n"
                     # out += "TOOL_NUMBER " + 'T' + str(TOOL_NUMBER) + "\n"
                 print("Check machining and spindle number: " + 'T' + str(TOOL_NUMBER))
                 out += linenumber() + "(Drilling spindle number error)\n"
+                outstring.pop(0)
                 
             if TOOL_NUMBER > 12 and command in ('G81', 'G82', 'G83'):
-                out += "command " + command + "\n"
-                out += "TOOL_NUMBER " + 'T' + str(TOOL_NUMBER) + "\n"
+                # out += "command " + command + "\n"
+                # out += "TOOL_NUMBER " + 'T' + str(TOOL_NUMBER) + "\n"
                 out += linenumber() + "\nM83\nM33 " + "S" + str(TOOL_SPEED) + "\nG600 " + "T" + str(TOOL_NUMBER) + "\n\n"
 
             # if TOOL_NUMBER > 12 and command in ('M6', 'M06') and command in ('G81', 'G82', 'G83'):        # when milling and drilling spindle numbers are the same
