@@ -31,7 +31,7 @@ import argparse
 import datetime
 import shlex
 import PathScripts.PathUtil as PathUtil
-
+import sys
 
 TOOLTIP = '''
 Generate g-code from a Path that is compatible with the grbl controller.
@@ -96,7 +96,7 @@ PRE_OPERATION_DRILL = '''___G90 G54
 M83
 M33 S6000___'''                        # Pre operation text will be inserted before every operation drill
 POST_OPERATION = ''''''                     # Post operation text will be inserted after every operation
-TOOL_CHANGE = ''''''                            # Tool Change commands will be inserted before a tool change
+TOOL_CHANGE = '''___!!!___'''                            # Tool Change commands will be inserted before a tool change
 
 TOOL_NUMBER = 0
 
@@ -520,21 +520,28 @@ def parse(pathobj):
                 if USE_TLO:                                                 # cutter length compensation
                     tool_height = '\nG43 H' + str(TOOL_NUMBER)
                     outstring.append(tool_height)
+                #TOOL_NUMBER = 0
+                outstring.pop(0)                                            #cleared M6 - not work for next step if TOOL_NUMBER > 12
 
             if TOOL_NUMBER > 12 and command in ('M6', 'M06'):
-                out += "command " + command + "\n"
-                out += "TOOL_NUMBER " + 'T' + str(TOOL_NUMBER) + "\n"
-                print("Check machining and spindle number: " + 'T' + str(TOOL_NUMBER))
-                out += linenumber() + "(Milling spindle number error)\n"
+                # out += "command " + command + "\n"
+                # out += "TOOL_NUMBER " + 'T' + str(TOOL_NUMBER) + "\n"
+                #outstring.pop(0)
+                #print("Check machining and spindle number: " + 'T' + str(TOOL_NUMBER))
+                #exit()
+                raise SystemExit("Milling spindle number error: " + 'T' + str(TOOL_NUMBER) + "\n")
+                #out += linenumber() + "(Milling spindle number error)\n"
                 #outstring.pop(0)
                 
 
             if TOOL_NUMBER <= 12 and command in ('G81', 'G82', 'G83'):
-                    # out += "command " + command + "\n"
-                    # out += "TOOL_NUMBER " + 'T' + str(TOOL_NUMBER) + "\n"
-                print("Check machining and spindle number: " + 'T' + str(TOOL_NUMBER))
-                out += linenumber() + "(Drilling spindle number error)\n"
-                outstring.pop(0)
+                # out += "command " + command + "\n"
+                # out += "TOOL_NUMBER " + 'T' + str(TOOL_NUMBER) + "\n"
+                #break
+                #print("Check machining and spindle number: " + 'T' + str(TOOL_NUMBER))
+                raise SystemExit("Drilling spindle number error: " + 'T' + str(TOOL_NUMBER) + "\n")
+                #out += linenumber() + "(Drilling spindle number error)\n"
+                #outstring.pop(0)
                 
             if TOOL_NUMBER > 12 and command in ('G81', 'G82', 'G83'):
                 # out += "command " + command + "\n"
