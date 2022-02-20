@@ -31,7 +31,7 @@ import argparse
 import datetime
 import shlex
 import PathScripts.PathUtil as PathUtil
-#import sys
+import sys
 
 TOOLTIP = '''
 Generate g-code from a Path that is compatible with the grbl controller.
@@ -96,9 +96,9 @@ PRE_OPERATION_DRILL = '''___G90 G54
 M83
 M33 S6000___'''                        # Pre operation text will be inserted before every operation drill
 POST_OPERATION = ''''''                     # Post operation text will be inserted after every operation
-TOOL_CHANGE = '''___!!!___'''                            # Tool Change commands will be inserted before a tool change
+TOOL_CHANGE = ''''''                            # Tool Change commands will be inserted before a tool change
 
-#TOOL_NUMBER = 0
+TOOL_NUMBER = 0
 
 # ***************************************************************************
 # * End of customization
@@ -507,52 +507,35 @@ def parse(pathobj):
                     outstring = []
 
             # Check for Tool Change:
-            for command in ('M6', 'M06'):
-                if 0 > TOOL_NUMBER <= 12:               # and command in ('M6', 'M06'):
-                        # if OUTPUT_COMMENTS:
-                            # out += linenumber() + "(Begin toolchange)\n"
-                        # if not OUTPUT_TOOL_CHANGE:
-                            # outstring.insert(0, "(" )
-                            # outstring.append( ")" )
-                        #else:
-                    for line in TOOL_CHANGE.splitlines(True):
-                        out += linenumber() + line                              # TOOL_CHANGE = ''''''
-                    #add height offset
-                    if USE_TLO:                                                 # cutter length compensation
-                        tool_height = '\nG43 H' + str(TOOL_NUMBER)
-                        outstring.append(tool_height)
-                    #TOOL_NUMBER = 0
-                    #outstring.pop(0)                                            #cleared M6 - not work for next step if TOOL_NUMBER > 12
-                    #command = 'M1'
+            if TOOL_NUMBER <= 12 and "Profile" in pathobj.Label:                #command in ('M6', 'M06'):
+                    # if OUTPUT_COMMENTS:
+                        # out += linenumber() + "(Begin toolchange)\n"
+                    # if not OUTPUT_TOOL_CHANGE:
+                        # outstring.insert(0, "(" )
+                        # outstring.append( ")" )
+                    #else:
+                for line in TOOL_CHANGE.splitlines(True):
+                    out += linenumber() + line                              # TOOL_CHANGE = ''''''
+                #add height offset
+                if USE_TLO:                                                 # cutter length compensation
+                    tool_height = '\nG43 H' + str(TOOL_NUMBER)
+                    outstring.append(tool_height)
 
-                if TOOL_NUMBER > 12:                    # and command in ('M6', 'M06'):
-                    # out += "command " + command + "\n"
-                    # out += "TOOL_NUMBER " + 'T' + str(TOOL_NUMBER) + "\n"
-                    #outstring.pop(0)
-                    #print("Check machining and spindle number: " + 'T' + str(TOOL_NUMBER))
-                    #exit()
-                    raise SystemExit("Milling spindle number error: " + 'T' + str(TOOL_NUMBER) + "\n")          #  + obj.Label
-                    #out += linenumber() + "(Milling spindle number error)\n"
-                    #outstring.pop(0)
-                    
-            for command in ('G81', 'G82', 'G83'):
-                if TOOL_NUMBER > 12 and command in ('G81', 'G82', 'G83'):
-                    # out += "command " + command + "\n"
-                    # out += "TOOL_NUMBER " + 'T' + str(TOOL_NUMBER) + "\n"
-                    out += linenumber() + "\nM83\nM33 " + "S" + str(TOOL_SPEED) + "\nG600 " + "T" + str(TOOL_NUMBER) + "\n\n"
+            if TOOL_NUMBER > 12 and "Profile" in pathobj.Label:                 #command in ('M6', 'M06'):
+                #print("Check machining and spindle number: " + 'T' + str(TOOL_NUMBER))
+                #exit()
+                raise SystemExit("Milling spindle number error " + 'T' + str(TOOL_NUMBER) + " in machining " + pathobj.Label + "\n")
+                #outstring.pop(0)
 
-                if 0 > TOOL_NUMBER <= 12:                   # and command in ('G81', 'G82', 'G83'):
-                    # out += "command " + command + "\n"
-                    # out += "TOOL_NUMBER " + 'T' + str(TOOL_NUMBER) + "\n"
-                    #break
-                    #print("Check machining and spindle number: " + 'T' + str(TOOL_NUMBER))
-                    raise SystemExit("Drilling spindle number error: " + 'T' + str(TOOL_NUMBER) + "\n")
-                    #out += linenumber() + "(Drilling spindle number error)\n"
-                    #outstring.pop(0)
-                    
-                
-                # if TOOL_NUMBER > 12 and command in ('M6', 'M06') and command in ('G81', 'G82', 'G83'):        # when milling and drilling spindle numbers are the same
-                    # print("Spindle numbers match. Check spindle numbers!")
+            if TOOL_NUMBER <= 12 and "Drilling" in pathobj.Label:                #command in ('G81', 'G82', 'G83'):
+                #break
+                #print("Check machining and spindle number: " + 'T' + str(TOOL_NUMBER))
+                raise SystemExit("Drilling spindle number error " + 'T' + str(TOOL_NUMBER) + " in machining " + pathobj.Label + "\n")
+
+            if TOOL_NUMBER > 12 and "Drilling" in pathobj.Label:                    #command in ('G81', 'G82', 'G83'):
+                # out += "command " + command + "\n"
+                # out += "TOOL_NUMBER " + 'T' + str(TOOL_NUMBER) + "\n"
+                out += linenumber() + "\nM83\nM33 " + "S" + str(TOOL_SPEED) + "\nG600 " + "T" + str(TOOL_NUMBER) + "\n\n"
 
             if command == "message":
                 if OUTPUT_COMMENTS is False:
