@@ -26,12 +26,12 @@
 
 import FreeCAD
 from FreeCAD import Units
-import Path
+#import Path
 import argparse
 import datetime
 import shlex
 import PathScripts.PathUtil as PathUtil
-import sys
+#import sys
 
 TOOLTIP = '''
 Generate g-code from a Path that is compatible with the grbl controller.
@@ -45,7 +45,7 @@ grbl_post.export(object, "/path/to/file.ncc")
 # ***************************************************************************
 
 # Default values for command line arguments:
-OUTPUT_COMMENTS = False                        # default output of comments in output gCode file
+OUTPUT_COMMENTS = True                        # default output of comments in output gCode file
 OUTPUT_HEADER = True                            # default output header in output gCode file
 OUTPUT_LINE_NUMBERS = False                   # default doesn't output line numbers in output gCode file
 OUTPUT_BCNC = False                             # default doesn't add bCNC operation block headers in output gCode file
@@ -56,7 +56,7 @@ USE_TLO = True                                  # if true G43 will be output fol
 
 PREAMBLE = '''
 M98 P407
-G90
+G90 G21
 G53 Z-15.000
 M129
 M123
@@ -92,13 +92,11 @@ UNITS = 'G21'                                         # G21 for metric, G20 for 
 UNIT_FORMAT = 'mm'
 UNIT_SPEED_FORMAT = 'mm/min'
 PRE_OPERATION_MILL = ''''''                        # Pre operation text will be inserted before every operation mill
-PRE_OPERATION_DRILL = '''___G90 G54
-M83
-M33 S6000___'''                        # Pre operation text will be inserted before every operation drill
+PRE_OPERATION_DRILL = ''''''                        # Pre operation text will be inserted before every operation drill
 POST_OPERATION = ''''''                     # Post operation text will be inserted after every operation
 TOOL_CHANGE = ''''''                            # Tool Change commands will be inserted before a tool change
 #TOOL_NUMBER = 0
-MAGAZINE_MAX = 12
+MAG_MAX = 12                                # maximum number of holders in the tool magazine
 
 # ***************************************************************************
 # * End of customization
@@ -267,31 +265,21 @@ def export(objectslist, filename, argstring):
     # verify if PREAMBLE have changed MOTION_MODE or UNITS
     if 'G90' in PREAMBLE:
         MOTION_MODE = 'G90'
-    # elif 'G91' in PREAMBLE:
-        # MOTION_MODE = 'G91'
+    elif 'G91' in PREAMBLE:
+        MOTION_MODE = 'G91'
     else:
-        print("Error motion mode G90")
-        # write the file
-        #gfile = pythonopen(filename, "w")
-        #gfile.write(final)
-        gfile.close()
-        #gcode += linenumber() + MOTION_MODE + "______\n"
-        
+        gcode += linenumber() + MOTION_MODE + "\n"
     if 'G21' in PREAMBLE:
         UNITS = 'G21'
         UNIT_FORMAT = 'mm'
         UNIT_SPEED_FORMAT = 'mm/min'
     elif 'G20' in PREAMBLE:
-        print("Error units metric G20")
-        # write the file
-        gfile = pythonopen(filename, "w")
-        #gfile.write(final)
-        gfile.close()
+        raise SystemExit("The non-metric calculation system is set!\n(G20/G21)")
         # UNITS = 'G20'
         # UNIT_FORMAT = 'in'
         # UNIT_SPEED_FORMAT = 'in/min'
     # else:
-        # gcode += linenumber() + UNITS + "!!!!!!!!\n"
+        # gcode += linenumber() + UNITS + "\n"
 
     for obj in objectslist:
         # Debug...
@@ -316,25 +304,24 @@ def export(objectslist, filename, argstring):
         for line in PRE_OPERATION_MILL.splitlines(True):
             gcode += linenumber() + line
         # for line in PRE_OPERATION_DRILL.splitlines(True):
-            # if TOOL_NUMBER > MAGAZINE_MAX:
-                # gcode += linenumber() + line
+            # gcode += linenumber() + line
 
         # get coolant mode
         coolantMode = 'None'
-        if hasattr(obj, "CoolantMode") or hasattr(obj, 'Base') and    hasattr(obj.Base, "CoolantMode"):
-                if hasattr(obj, "CoolantMode"):
-                        coolantMode = obj.CoolantMode
-                else:
-                        coolantMode = obj.Base.CoolantMode
+        if hasattr(obj, "CoolantMode") or hasattr(obj, 'Base') and hasattr(obj.Base, "CoolantMode"):
+            if hasattr(obj, "CoolantMode"):
+                coolantMode = obj.CoolantMode
+            else:
+                coolantMode = obj.Base.CoolantMode
 
         # turn coolant on if required
         if OUTPUT_COMMENTS:
-                if not coolantMode == 'None':
-                        gcode += linenumber() + '(Coolant On:' + coolantMode + ')\n'
+            if not coolantMode == 'None':
+                    gcode += linenumber() + '(Coolant On:' + coolantMode + ')\n'
         if coolantMode == 'Flood':
-                gcode    += linenumber() + 'M8' + '\n'
+            gcode    += linenumber() + 'M8' + '\n'
         if coolantMode == 'Mist':
-                gcode += linenumber() + 'M7' + '\n'
+            gcode += linenumber() + 'M7' + '\n'
 
         # Parse the op
         gcode += parse(obj)
@@ -347,9 +334,9 @@ def export(objectslist, filename, argstring):
 
         # turn coolant off if required
         if not coolantMode == 'None':
-                if OUTPUT_COMMENTS:
-                        gcode += linenumber() + '(Coolant Off:' + coolantMode + ')\n'
-                gcode += linenumber() +'M9' + '\n'
+            if OUTPUT_COMMENTS:
+                gcode += linenumber() + '(Coolant Off:' + coolantMode + ')\n'
+            gcode += linenumber() +'M9' + '\n'
 
     if RETURN_TO:
         gcode += linenumber() + "G0 X%s Y%s\n" % tuple(RETURN_TO)
@@ -359,12 +346,12 @@ def export(objectslist, filename, argstring):
         gcode += linenumber() + "(Block-name: post_amble)\n"
         gcode += linenumber() + "(Block-expand: 0)\n"
         gcode += linenumber() + "(Block-enable: 1)\n"
-    if TOOL_NUMBER <= MAGAZINE_MAX:                                       # if spindle number T <= 12 and milling operation
+    if TOOL_NUMBER <= MAG_MAX:                                       # if spindle number T <= MAG_MAX (milling operation)
         if OUTPUT_COMMENTS:
             gcode += linenumber() + "(Begin postamble mill)\n"
         for line in POSTAMBLE_MILL.splitlines(True):
             gcode += linenumber() + line
-    else:                                                       # if spindle number T > 12 and drilling operation
+    else:                                                       # if spindle number T > MAG_MAX (drilling operation)
         if OUTPUT_COMMENTS:
             gcode += linenumber() + "(Begin postamble drill)\n"
         for line in POSTAMBLE_DRILL.splitlines(True):
@@ -419,7 +406,7 @@ def parse(pathobj):
     global CURRENT_Z
     global TOOL_NUMBER
     global TOOL_SPEED
-    global MAGAZINE_MAX
+    global MAG_MAX
 
     out = ""
     lastcommand = None
@@ -514,28 +501,28 @@ def parse(pathobj):
                     outstring = []
 
             # Check for Tool Change:
-            if TOOL_NUMBER <= MAGAZINE_MAX and command in ('M6', 'M06'):
-                    # if OUTPUT_COMMENTS:
-                        # out += linenumber() + "(Begin toolchange)\n"
-                    # if not OUTPUT_TOOL_CHANGE:
-                        # outstring.insert(0, "(" )
-                        # outstring.append( ")" )
-                    #else:
-                for line in TOOL_CHANGE.splitlines(True):                              # TOOL_CHANGE = ''''''
-                    out += linenumber() + line
-                #add height offset
+            if TOOL_NUMBER <= MAG_MAX and command in ('M6', 'M06'):
+                if OUTPUT_COMMENTS:
+                    out += linenumber() + "(Begin toolchange)\n"
+                if not OUTPUT_TOOL_CHANGE:
+                    outstring.insert(0, "(" )
+                    outstring.append( ")" )
+                else:
+                    for line in TOOL_CHANGE.splitlines(True):                              # TOOL_CHANGE = ''''''
+                        out += linenumber() + line
+                    #add height offset
                 if USE_TLO:
                     tool_height = '\nG43 H' + str(TOOL_NUMBER)
                     outstring.append(tool_height)
 
-            if TOOL_NUMBER > MAGAZINE_MAX and "Profile" in pathobj.Label:
+            if TOOL_NUMBER > MAG_MAX and "Profile" in pathobj.Label:
                 raise SystemExit("Milling spindle number error " + 'T' + str(TOOL_NUMBER) + " in machining " + pathobj.Label + "\n")
 
-            if TOOL_NUMBER <= MAGAZINE_MAX and "Drilling" in pathobj.Label:
+            if TOOL_NUMBER <= MAG_MAX and "Drilling" in pathobj.Label:
                 raise SystemExit("Drilling spindle number error " + 'T' + str(TOOL_NUMBER) + " in machining " + pathobj.Label + "\n")
 
-            if TOOL_NUMBER > MAGAZINE_MAX and command in ('G81', 'G82', 'G83'):
-                out += linenumber() + "\nM83\nM33 " + "S" + str(TOOL_SPEED) + "\nG600 " + "T" + str(TOOL_NUMBER) + "\n\n"
+            if TOOL_NUMBER > MAG_MAX and command in ('G81', 'G82', 'G83'):
+                out += linenumber() + "\nM83\nM33 " + "S" + str(TOOL_SPEED) + "\nM7" + "\nG600 " + "T" + str(TOOL_NUMBER) + "\n\n"
 
             if command == "message":
                 if OUTPUT_COMMENTS is False:
