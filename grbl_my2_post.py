@@ -45,7 +45,7 @@ grbl_post.export(object, "/path/to/file.ncc")
 # ***************************************************************************
 
 # Default values for command line arguments:
-OUTPUT_COMMENTS = True                        # default output of comments in output gCode file
+OUTPUT_COMMENTS = False                        # default output of comments in output gCode file
 OUTPUT_HEADER = True                            # default output header in output gCode file
 OUTPUT_LINE_NUMBERS = False                   # default doesn't output line numbers in output gCode file
 OUTPUT_BCNC = False                             # default doesn't add bCNC operation block headers in output gCode file
@@ -97,8 +97,8 @@ M83
 M33 S6000___'''                        # Pre operation text will be inserted before every operation drill
 POST_OPERATION = ''''''                     # Post operation text will be inserted after every operation
 TOOL_CHANGE = ''''''                            # Tool Change commands will be inserted before a tool change
-
-TOOL_NUMBER = 0
+#TOOL_NUMBER = 0
+MAGAZINE_MAX = 12
 
 # ***************************************************************************
 # * End of customization
@@ -316,7 +316,7 @@ def export(objectslist, filename, argstring):
         for line in PRE_OPERATION_MILL.splitlines(True):
             gcode += linenumber() + line
         # for line in PRE_OPERATION_DRILL.splitlines(True):
-            # if TOOL_NUMBER > 12:
+            # if TOOL_NUMBER > MAGAZINE_MAX:
                 # gcode += linenumber() + line
 
         # get coolant mode
@@ -359,7 +359,7 @@ def export(objectslist, filename, argstring):
         gcode += linenumber() + "(Block-name: post_amble)\n"
         gcode += linenumber() + "(Block-expand: 0)\n"
         gcode += linenumber() + "(Block-enable: 1)\n"
-    if TOOL_NUMBER <= 12:                                       # if spindle number T <= 12 and milling operation
+    if TOOL_NUMBER <= MAGAZINE_MAX:                                       # if spindle number T <= 12 and milling operation
         if OUTPUT_COMMENTS:
             gcode += linenumber() + "(Begin postamble mill)\n"
         for line in POSTAMBLE_MILL.splitlines(True):
@@ -419,6 +419,7 @@ def parse(pathobj):
     global CURRENT_Z
     global TOOL_NUMBER
     global TOOL_SPEED
+    global MAGAZINE_MAX
 
     out = ""
     lastcommand = None
@@ -444,7 +445,13 @@ def parse(pathobj):
             outstring = []
             command = c.Name
 
-            outstring.append(command)
+            outstring.append(command)                                              # if # - removes all Gxx commands
+            
+            if command in ('G80', 'G90', 'G99'):                        # skip command output to G code
+                continue
+            
+            # if command in ('G81'):
+                # command = 'G1'
 
             # if modal: only print the command if it is not the same as the last one
             if MODAL:
@@ -469,7 +476,7 @@ def parse(pathobj):
                         outstring.append(param + str(int(c.Parameters[param])))
                     elif param in ['A', 'B', 'C']:
                         outstring.append(param + format(c.Parameters[param], precision_string))
-                    else:    # [X, Y, Z, U, V, W, I, J, K, R, Q] (Conversion eventuelle mm/inches)
+                    else:   # [X, Y, Z, U, V, W, I, J, K, R, Q] (Conversion eventuelle mm/inches)
                         pos = Units.Quantity(c.Parameters[param], FreeCAD.Units.Length)
                         outstring.append(param + format(float(pos.getValueAs(UNIT_FORMAT)), precision_string))
 
@@ -497,7 +504,7 @@ def parse(pathobj):
             # if TRANSLATE_DRILL_CYCLES:
                 # if command in ('G81', 'G82', 'G83'):
                     # out += drill_translate(outstring, command, c.Parameters)
-                    #Erase the line we just translated
+                    # Erase the line we just translated
                     # outstring = []
 
             if SPINDLE_WAIT > 0:
@@ -507,41 +514,34 @@ def parse(pathobj):
                     outstring = []
 
             # Check for Tool Change:
-            if TOOL_NUMBER <= 12 and "Profile" in pathobj.Label:                #command in ('M6', 'M06'):
+            if TOOL_NUMBER <= MAGAZINE_MAX and command in ('M6', 'M06'):
                     # if OUTPUT_COMMENTS:
                         # out += linenumber() + "(Begin toolchange)\n"
                     # if not OUTPUT_TOOL_CHANGE:
                         # outstring.insert(0, "(" )
                         # outstring.append( ")" )
                     #else:
-                for line in TOOL_CHANGE.splitlines(True):
-                    out += linenumber() + line                              # TOOL_CHANGE = ''''''
+                for line in TOOL_CHANGE.splitlines(True):                              # TOOL_CHANGE = ''''''
+                    out += linenumber() + line
                 #add height offset
-                if USE_TLO:                                                 # cutter length compensation
+                if USE_TLO:
                     tool_height = '\nG43 H' + str(TOOL_NUMBER)
                     outstring.append(tool_height)
 
-            if TOOL_NUMBER > 12 and "Profile" in pathobj.Label:                 #command in ('M6', 'M06'):
-                #print("Check machining and spindle number: " + 'T' + str(TOOL_NUMBER))
-                #exit()
+            if TOOL_NUMBER > MAGAZINE_MAX and "Profile" in pathobj.Label:
                 raise SystemExit("Milling spindle number error " + 'T' + str(TOOL_NUMBER) + " in machining " + pathobj.Label + "\n")
-                #outstring.pop(0)
 
-            if TOOL_NUMBER <= 12 and "Drilling" in pathobj.Label:                #command in ('G81', 'G82', 'G83'):
-                #break
-                #print("Check machining and spindle number: " + 'T' + str(TOOL_NUMBER))
+            if TOOL_NUMBER <= MAGAZINE_MAX and "Drilling" in pathobj.Label:
                 raise SystemExit("Drilling spindle number error " + 'T' + str(TOOL_NUMBER) + " in machining " + pathobj.Label + "\n")
 
-            if TOOL_NUMBER > 12 and "Drilling" in pathobj.Label:                    #command in ('G81', 'G82', 'G83'):
-                # out += "command " + command + "\n"
-                # out += "TOOL_NUMBER " + 'T' + str(TOOL_NUMBER) + "\n"
+            if TOOL_NUMBER > MAGAZINE_MAX and command in ('G81', 'G82', 'G83'):
                 out += linenumber() + "\nM83\nM33 " + "S" + str(TOOL_SPEED) + "\nG600 " + "T" + str(TOOL_NUMBER) + "\n\n"
 
             if command == "message":
                 if OUTPUT_COMMENTS is False:
                     out = []
                 else:
-                    outstring.pop(0)    # remove the command
+                    outstring.pop(0)                      # remove the command
 
             if command in SUPPRESS_COMMANDS:
                 outstring.insert(0, "(" )
